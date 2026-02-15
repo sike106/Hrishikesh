@@ -19,7 +19,9 @@ test("GET /health returns ok", async () => {
   await withServer(async (baseUrl) => {
     const res = await fetch(`${baseUrl}/health`);
     assert.equal(res.status, 200);
-    assert.deepEqual(await res.json(), { status: "ok" });
+    const body = await res.json();
+    assert.equal(body.status, "ok");
+    assert.match(body.mode, /fallback|openai/);
   });
 });
 
@@ -52,5 +54,28 @@ test("POST /chat rejects empty prompt", async () => {
 
     assert.equal(res.status, 400);
     assert.deepEqual(await res.json(), { error: "prompt is required" });
+  });
+});
+
+test("POST /chat rejects invalid JSON", async () => {
+  await withServer(async (baseUrl) => {
+    const res = await fetch(`${baseUrl}/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{bad json"
+    });
+
+    assert.equal(res.status, 400);
+    assert.deepEqual(await res.json(), { error: "Invalid JSON body" });
+  });
+});
+
+test("GET / serves the app html", async () => {
+  await withServer(async (baseUrl) => {
+    const res = await fetch(`${baseUrl}/`);
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get("content-type"), /text\/html/);
+    const html = await res.text();
+    assert.match(html, /AI App/);
   });
 });

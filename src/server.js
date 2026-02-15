@@ -8,13 +8,32 @@ import { generateResponse } from "./llm.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicDir = path.join(__dirname, "..", "public");
+const MAX_BODY_SIZE_BYTES = 1024 * 1024; // 1MB
 
 async function parseJsonBody(req) {
   const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
-  const raw = Buffer.concat(chunks).toString("utf8");
+  let total = 0;
+
+  for await (const chunk of req) {
+    total += chunk.length;
+    if (total > MAX_BODY_SIZE_BYTES) {
+      const error = new Error("Request body too large");
+      error.statusCode = 413;
+      throw error;
+    }
+    chunks.push(chunk);
+  }
+
+  const raw = Buffer.concat(chunks).toString("utf8").trim();
   if (!raw) return {};
-  return JSON.parse(raw);
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const error = new Error("Invalid JSON body");
+    error.statusCode = 400;
+    throw error;
+  }
 }
 
 function sendJson(res, statusCode, payload) {
@@ -22,9 +41,23 @@ function sendJson(res, statusCode, payload) {
   res.end(JSON.stringify(payload));
 }
 
+function getContentType(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === ".html") return "text/html";
+  if (ext === ".css") return "text/css";
+  if (ext === ".js") return "application/javascript";
+  if (ext === ".json") return "application/json";
+  if (ext === ".svg") return "image/svg+xml";
+  if (ext === ".png") return "image/png";
+  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
+  return "text/plain";
+}
+
 async function serveStatic(req, res) {
-  const route = req.url === "/" ? "/index.html" : req.url;
-  const fullPath = path.join(publicDir, route);
+  const pathname = new URL(req.url, "http://localhost").pathname;
+  const route = pathname === "/" ? "/index.html" : pathname;
+  const safePath = path.normalize(route).replace(/^([.][.][/\\])+/, "");
+  const fullPath = path.join(publicDir, safePath);
 
   if (!fullPath.startsWith(publicDir)) {
     sendJson(res, 403, { error: "Forbidden" });
@@ -33,9 +66,7 @@ async function serveStatic(req, res) {
 
   try {
     const file = await fs.readFile(fullPath);
-    const ext = path.extname(fullPath);
-    const contentType = ext === ".html" ? "text/html" : "text/plain";
-    res.writeHead(200, { "Content-Type": `${contentType}; charset=utf-8` });
+    res.writeHead(200, { "Content-Type": `${getContentType(fullPath)}; charset=utf-8` });
     res.end(file);
     return true;
   } catch {
@@ -50,7 +81,10 @@ export function createServer() {
     }
 
     if (req.method === "GET" && req.url === "/health") {
-      return sendJson(res, 200, { status: "ok" });
+      return sendJson(res, 200, {
+        status: "ok",
+        mode: process.env.OPENAI_API_KEY ? "openai" : "fallback"
+      });
     }
 
     if (req.method === "POST" && req.url === "/chat") {
@@ -65,6 +99,14 @@ export function createServer() {
         const answer = await generateResponse(prompt);
         return sendJson(res, 200, { answer });
       } catch (error) {
+        if (error?.statusCode === 400) {
+          return sendJson(res, 400, { error: error.message });
+        }
+
+        if (error?.statusCode === 413) {
+          return sendJson(res, 413, { error: error.message });
+        }
+
         return sendJson(res, 502, {
           error: "Failed to generate response",
           details: error instanceof Error ? error.message : String(error)

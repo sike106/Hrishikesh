@@ -1,13 +1,14 @@
 # AI App + AI Server
 
-This project now provides a **Node.js AI server** and a **browser AI app** that run with npm.
+This project provides a **Node.js AI server** and a **browser AI app** that run with npm.
 
 ## What is included
 
-- `src/server.js`: Express server with:
+- `src/server.js`: HTTP server with:
   - `GET /health`
   - `POST /chat`
   - static hosting for the app in `public/`
+  - JSON validation and request-size protection
 - `src/llm.js`: AI response logic with:
   - local fallback mode (no API key needed)
   - OpenAI Chat Completions integration when `OPENAI_API_KEY` is set
@@ -32,13 +33,27 @@ The server starts on `http://localhost:3000`.
 
 By default, `/chat` returns a local fallback response.
 
-To use live model responses:
+1. Create a `.env` file from the template:
 
 ```bash
-export OPENAI_API_KEY=your_key_here
-export OPENAI_MODEL=gpt-4o-mini
+cp .env.example .env
+```
+
+2. Add your API key in `.env`:
+
+```bash
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-4o-mini
+```
+
+3. Export variables and run the app:
+
+```bash
+set -a; source .env; set +a
 npm run dev
 ```
+
+> Never commit real API keys. `.env` is gitignored in this repo.
 
 ## Test
 
