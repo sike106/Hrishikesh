@@ -21,13 +21,13 @@ test("GET /health returns ok", async () => {
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.equal(body.status, "ok");
-    assert.match(body.mode, /fallback|openai/);
+    assert.match(body.mode, /fallback|ollama/);
   });
 });
 
-test("POST /chat returns fallback without OPENAI_API_KEY", async () => {
-  const previous = process.env.OPENAI_API_KEY;
-  delete process.env.OPENAI_API_KEY;
+test("POST /chat returns fallback when backend is fallback", async () => {
+  const previous = process.env.AI_BACKEND;
+  process.env.AI_BACKEND = "fallback";
 
   await withServer(async (baseUrl) => {
     const res = await fetch(`${baseUrl}/chat`, {
@@ -41,7 +41,8 @@ test("POST /chat returns fallback without OPENAI_API_KEY", async () => {
     assert.match(data.answer, /local fallback/i);
   });
 
-  if (previous !== undefined) process.env.OPENAI_API_KEY = previous;
+  if (previous !== undefined) process.env.AI_BACKEND = previous;
+  else delete process.env.AI_BACKEND;
 });
 
 test("POST /chat rejects empty prompt", async () => {

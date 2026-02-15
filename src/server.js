@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { generateResponse } from "./llm.js";
+import { generateResponse, getRuntimeMode } from "./llm.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -83,7 +83,7 @@ export function createServer() {
     if (req.method === "GET" && req.url === "/health") {
       return sendJson(res, 200, {
         status: "ok",
-        mode: process.env.OPENAI_API_KEY ? "openai" : "fallback"
+        mode: getRuntimeMode()
       });
     }
 

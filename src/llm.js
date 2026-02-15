@@ -1,46 +1,54 @@
-const OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
+const DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434";
 
 function localFallbackResponse(prompt) {
   const cleaned = String(prompt || "").trim();
   if (!cleaned) {
     return "Please send a message so I can help.";
   }
-  return `(local fallback) I received: '${cleaned}'.\nSet OPENAI_API_KEY to enable live model responses.`;
+  return `(local fallback) I received: '${cleaned}'.\nRun Ollama and set AI_BACKEND=ollama for live model responses.`;
 }
 
-async function openAIChatCompletion(prompt, apiKey) {
-  const payload = {
-    model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-    messages: [
-      { role: "system", content: "You are a concise and helpful AI assistant." },
-      { role: "user", content: prompt }
-    ],
-    temperature: 0.7
-  };
+function getBackend() {
+  return (process.env.AI_BACKEND || "ollama").trim().toLowerCase();
+}
 
-  const response = await fetch(OPENAI_ENDPOINT, {
+async function ollamaGenerate(prompt) {
+  const baseUrl = (process.env.OLLAMA_BASE_URL || DEFAULT_OLLAMA_BASE_URL).replace(/\/$/, "");
+  const model = (process.env.OLLAMA_MODEL || "llama3.2").trim();
+
+  const response = await fetch(`${baseUrl}/api/generate`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify(payload)
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      prompt,
+      system: "You are a concise and helpful AI assistant.",
+      stream: false
+    })
   });
 
   if (!response.ok) {
     const details = await response.text();
-    throw new Error(`OpenAI request failed (${response.status}): ${details}`);
+    throw new Error(`Ollama request failed (${response.status}): ${details}`);
   }
 
   const data = await response.json();
-  const content = data?.choices?.[0]?.message?.content;
+  const content = data?.response;
   return (content || "I could not generate a response.").trim();
 }
 
+export function getRuntimeMode() {
+  return getBackend() === "ollama" ? "ollama" : "fallback";
+}
+
 export async function generateResponse(prompt) {
-  const apiKey = (process.env.OPENAI_API_KEY || "").trim();
-  if (!apiKey) {
+  if (getBackend() !== "ollama") {
     return localFallbackResponse(prompt);
   }
-  return openAIChatCompletion(prompt, apiKey);
+
+  try {
+    return await ollamaGenerate(prompt);
+  } catch {
+    return localFallbackResponse(prompt);
+  }
 }

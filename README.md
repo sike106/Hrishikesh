@@ -10,8 +10,8 @@ This project provides a **Node.js AI server** and a **browser AI app** that run 
   - static hosting for the app in `public/`
   - JSON validation and request-size protection
 - `src/llm.js`: AI response logic with:
-  - local fallback mode (no API key needed)
-  - OpenAI Chat Completions integration when `OPENAI_API_KEY` is set
+  - **Ollama integration** (`/api/generate`)
+  - local fallback mode if Ollama is unavailable
 - `public/index.html`: chat UI for interacting with the server
 - `test/server.test.js`: endpoint tests using Node test runner
 
@@ -29,31 +29,35 @@ npm run dev
 
 The server starts on `http://localhost:3000`.
 
-## Configure OpenAI (optional)
+## Configure Ollama (recommended)
 
-By default, `/chat` returns a local fallback response.
+1. Install and run Ollama.
+2. Pull a model, for example:
 
-1. Create a `.env` file from the template:
+```bash
+ollama pull llama3.2
+```
+
+3. Create a `.env` file from the template:
 
 ```bash
 cp .env.example .env
 ```
 
-2. Add your API key in `.env`:
-
-```bash
-OPENAI_API_KEY=your_key_here
-OPENAI_MODEL=gpt-4o-mini
-```
-
-3. Export variables and run the app:
+4. Export variables and start:
 
 ```bash
 set -a; source .env; set +a
 npm run dev
 ```
 
-> Never commit real API keys. `.env` is gitignored in this repo.
+If Ollama is not reachable, the app returns local fallback responses so the UI still works.
+
+## Environment variables
+
+- `AI_BACKEND=ollama` (default) or `AI_BACKEND=fallback`
+- `OLLAMA_BASE_URL=http://127.0.0.1:11434`
+- `OLLAMA_MODEL=llama3.2`
 
 ## Test
 
