@@ -1,46 +1,54 @@
 # AI App + AI Server
 
-This repository now contains:
+This project now provides a **Node.js AI server** and a **browser AI app** that run with npm.
 
-- **`ai_server`**: a FastAPI server with `/health` and `/chat` endpoints.
-- **`ai_app`**: a Streamlit chat UI that calls the server.
+## What is included
 
-## 1) Install dependencies
+- `src/server.js`: Express server with:
+  - `GET /health`
+  - `POST /chat`
+  - static hosting for the app in `public/`
+- `src/llm.js`: AI response logic with:
+  - local fallback mode (no API key needed)
+  - OpenAI Chat Completions integration when `OPENAI_API_KEY` is set
+- `public/index.html`: chat UI for interacting with the server
+- `test/server.test.js`: endpoint tests using Node test runner
+
+## Install
 
 ```bash
-pip install -r requirements.txt
+npm install
 ```
 
-## 2) Run the AI server
+## Run locally
 
 ```bash
-uvicorn ai_server.main:app --reload --host 0.0.0.0 --port 8000
+npm run dev
 ```
 
-The server uses a local fallback response by default.
+The server starts on `http://localhost:3000`.
 
-To use OpenAI responses, set your API key:
+## Configure OpenAI (optional)
+
+By default, `/chat` returns a local fallback response.
+
+To use live model responses:
 
 ```bash
 export OPENAI_API_KEY=your_key_here
+export OPENAI_MODEL=gpt-4o-mini
+npm run dev
 ```
 
-## 3) Run the AI app
-
-In a second terminal:
+## Test
 
 ```bash
-streamlit run ai_app/app.py
+npm test
 ```
 
-Optional server override:
+## API quick check
 
 ```bash
-export AI_SERVER_URL=http://localhost:8000
-```
-
-## 4) Run tests
-
-```bash
-pytest -q
+curl -s http://localhost:3000/health
+curl -s http://localhost:3000/chat -H 'content-type: application/json' -d '{"prompt":"Hello"}'
 ```

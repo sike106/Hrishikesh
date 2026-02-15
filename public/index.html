@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI App</title>
+    <style>
+      body { font-family: Arial, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
+      #chat { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; min-height: 300px; margin-bottom: 1rem; }
+      .msg { margin: .75rem 0; white-space: pre-wrap; }
+      .user { color: #0b57d0; }
+      .assistant { color: #111; }
+      form { display: flex; gap: .5rem; }
+      input { flex: 1; padding: .6rem; }
+      button { padding: .6rem 1rem; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <h1>🤖 AI App</h1>
+    <p>Simple browser chat UI backed by the AI server.</p>
+    <div id="chat"></div>
+    <form id="chat-form">
+      <input id="prompt" placeholder="Ask anything..." required />
+      <button type="submit">Send</button>
+    </form>
+
+    <script>
+      const chat = document.getElementById("chat");
+      const form = document.getElementById("chat-form");
+      const promptInput = document.getElementById("prompt");
+
+      function appendMessage(role, content) {
+        const div = document.createElement("div");
+        div.className = `msg ${role}`;
+        div.textContent = `${role === "user" ? "You" : "Assistant"}: ${content}`;
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const prompt = promptInput.value.trim();
+        if (!prompt) return;
+
+        appendMessage("user", prompt);
+        promptInput.value = "";
+
+        try {
+          const response = await fetch("/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt })
+          });
+
+          const data = await response.json();
+          if (!response.ok) {
+            appendMessage("assistant", data.error || "Request failed");
+            return;
+          }
+
+          appendMessage("assistant", data.answer);
+        } catch (err) {
+          appendMessage("assistant", `Network error: ${err.message}`);
+        }
+      });
+    </script>
+  </body>
+</html>
